@@ -286,11 +286,11 @@ L.Util.extend(L.KML, {
 			}
 		}
 
-		if (name) {
-			layer.on('add', function () {
-				layer.bindPopup('<h2>' + name + '</h2>' + descr);
-			});
-		}
+		// if (name) {
+		// 	layer.on('add', function () {
+		// 		layer.bindPopup('<h2>' + name + '</h2>' + descr);
+		// 	});
+		// }
 
 		return layer;
 	},
