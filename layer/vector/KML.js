@@ -9,7 +9,13 @@ L.KML = L.FeatureGroup.extend({
 		this._layers = {};
 
 		if (kml) {
-			this.addKML(kml, options, this.options.async);
+			if(options.isData) {
+				//the supplied kml arg is string data
+				this._addKML(kml)
+			} else {
+				//the supplied kml arg is a file url
+				this.addKML(kml, options, this.options.async);
+			}
 		}
 	},
 
@@ -73,26 +79,13 @@ L.KML = L.FeatureGroup.extend({
 L.Util.extend(L.KML, {
 
 	parseKML: function (xml) {
+		
 		var style = this.parseStyles(xml);
 		this.parseStyleMap(xml, style);
-		var el = xml.getElementsByTagName('Folder');
-		var layers = [], l;
-		for (var i = 0; i < el.length; i++) {
-			if (!this._check_folder(el[i])) { continue; }
-			l = this.parseFolder(el[i], style);
-			if (l) { layers.push(l); }
-		}
-		el = xml.getElementsByTagName('Placemark');
-		for (var j = 0; j < el.length; j++) {
-			if (!this._check_folder(el[j])) { continue; }
-			l = this.parsePlacemark(el[j], xml, style);
-			if (l) { layers.push(l); }
-		}
-		el = xml.getElementsByTagName('GroundOverlay');
-		for (var k = 0; k < el.length; k++) {
-			l = this.parseGroundOverlay(el[k]);
-			if (l) { layers.push(l); }
-		}
+		
+		var el = xml.getElementsByTagName('Document')[0];
+		return [this.parseFolder(el, style)];
+		
 		return layers;
 	},
 
@@ -202,27 +195,46 @@ L.Util.extend(L.KML, {
 
 	parseFolder: function (xml, style) {
 		var el, layers = [], l;
-		el = xml.getElementsByTagName('Folder');
-		for (var i = 0; i < el.length; i++) {
-			if (!this._check_folder(el[i], xml)) { continue; }
-			l = this.parseFolder(el[i], style);
-			if (l) { layers.push(l); }
+		var name = '';
+		var children = xml.children;
+		
+		for ( var i=0; i<children.length; i++) {
+			var child = children[i];
+			if (!this._check_folder(child, xml)) { continue; }
+			switch (child.tagName) {
+				case 'Folder':
+					l = this.parseFolder(child, style);
+					if (l) { 
+						l.layerType = 'folder';
+						layers.push(l);
+					}
+					break;
+				case 'name':
+					name = child.innerHTML;
+					break;
+				case 'Placemark':
+					l = this.parsePlacemark(child, xml, style);
+					if (l) {
+						l.layerType = 'placemark';
+						layers.push(l);
+					}
+					break;
+				case 'GroundOverlay':
+					l = this.parseGroundOverlay(child);
+					if (l) {
+						l.layerType = 'groundOverlay';
+						layers.push(l);
+					}
+				default:
+			}
 		}
-		el = xml.getElementsByTagName('Placemark');
-		for (var j = 0; j < el.length; j++) {
-			if (!this._check_folder(el[j], xml)) { continue; }
-			l = this.parsePlacemark(el[j], xml, style);
-			if (l) { layers.push(l); }
-		}
-		el = xml.getElementsByTagName('GroundOverlay');
-		for (var k = 0; k < el.length; k++) {
-			if (!this._check_folder(el[k], xml)) { continue; }
-			l = this.parseGroundOverlay(el[k]);
-			if (l) { layers.push(l); }
-		}
+		
+
 		if (!layers.length) { return; }
 		if (layers.length === 1) { return layers[0]; }
-		return new L.FeatureGroup(layers);
+		var folderLayer = new L.FeatureGroup(layers);
+		folderLayer.name = name;
+		return folderLayer;
 	},
 
 	parsePlacemark: function (place, xml, style, options) {
@@ -285,12 +297,6 @@ L.Util.extend(L.KML, {
 				descr = descr + el[i].childNodes[j].nodeValue;
 			}
 		}
-
-		// if (name) {
-		// 	layer.on('add', function () {
-		// 		layer.bindPopup('<h2>' + name + '</h2>' + descr);
-		// 	});
-		// }
 
 		return layer;
 	},
