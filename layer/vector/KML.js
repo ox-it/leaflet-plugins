@@ -196,7 +196,7 @@ L.Util.extend(L.KML, {
 	parseFolder: function (xml, style) {
 		var el, layers = [], l;
 		var name = '';
-		var children = xml.children;
+		var children = xml.childNodes;
 		
 		for ( var i=0; i<children.length; i++) {
 			var child = children[i];
